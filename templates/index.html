@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Scanning</title>
+    <link rel="stylesheet" href="/static/index.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Face Recognition</h1>
+        <p id="status">Preparing to scan...</p>
+        <div class="webcam-container">
+            <video id="webcam" autoplay playsinline></video>
+            <canvas id="snapshot" style="display: none;"></canvas>
+        </div>
+        <div id="timer"></div>
+        <div class="buttons">
+            <button id="scanAgain" style="display: none;">Scan Again</button>
+            <button id="proceed" style="display: none;">Proceed</button>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('snapshot');
+        const status = document.getElementById('status');
+        const session_id = "{{ session_id }}";
+        const timerDiv = document.getElementById('timer');
+        const scanAgainBtn = document.getElementById('scanAgain');
+        const proceedBtn = document.getElementById('proceed');
+
+        let currentStep = 0;
+
+        // Timer function
+        function showCountdown(callback) {
+            timerDiv.innerHTML = "3";
+            timerDiv.style.display = "block";
+            let countdown = 3;
+
+            const interval = setInterval(() => {
+                countdown -= 1;
+                timerDiv.innerHTML = countdown;
+
+                if (countdown === 0) {
+                    clearInterval(interval);
+                    timerDiv.style.display = "none";
+                    callback();
+                }
+            }, 1000);
+        }
+
+        // Access webcam
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+
+                // Start scanning process
+                video.onloadedmetadata = () => {
+                    status.textContent = "Starting scan in 3 seconds...";
+                    showCountdown(() => {
+                        captureAndSendImage();
+                    });
+                };
+            })
+            .catch(err => {
+                console.error("Error accessing webcam:", err);
+                status.textContent = "Error accessing webcam.";
+            });
+
+        function captureAndSendImage() {
+            status.textContent = "Scanning face...";
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                const formData = new FormData();
+                formData.append('image', blob, 'frame.jpg');
+                formData.append('session_id', session_id);
+
+                fetch('/get-face-embeddings', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            status.textContent = "Finished scanning.";
+                            scanAgainBtn.style.display = "inline-block";
+                            proceedBtn.style.display = "inline-block";
+                        } else {
+                            status.textContent = "Error: " + data.message;
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Error sending image:", err);
+                        status.textContent = "Error processing image.";
+                    });
+            }, 'image/jpeg');
+        }
+
+        // Event listeners for buttons
+        scanAgainBtn.addEventListener('click', () => {
+            status.textContent = "Preparing to scan again...";
+            scanAgainBtn.style.display = "none";
+            proceedBtn.style.display = "none";
+            showCountdown(() => {
+                captureAndSendImage();
+            });
+        });
+
+        proceedBtn.addEventListener('click', () => {
+            window.location.href = '/gesture?session_id=' + session_id;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="/static/login.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Login</h1>
+        <form id="loginForm" method="POST" action="/login">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required placeholder="Enter your username">
+
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required placeholder="Enter your password">
+
+            <button type="submit" name="validate">Login</button>
+            <button type="submit" name="register">Register</button>
+        </form>
+        {% if message %}
+            <p class="message">{{ message }}</p>
+        {% endif %}
+    </div>
+    <script>
+        const loginForm = document.getElementById("loginForm");
+
+        loginForm.addEventListener("submit", (event) => {
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            // Validation for username
+            const usernameRegex = /^[a-zA-Z0-9]{5,}$/; // At least 5 alphanumeric characters
+            if (!usernameRegex.test(username)) {
+                alert("Username must be at least 5 alphanumeric characters.");
+                event.preventDefault(); // Prevent form submission
+                return;
+            }
+
+            // Validation for password
+            const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/; 
+            // At least 6 characters, 1 uppercase, 1 number, and 1 special character
+            if (!passwordRegex.test(password)) {
+                alert("Password must be at least 6 characters with 1 uppercase, 1 number, and 1 special character.");
+                event.preventDefault(); // Prevent form submission
+                return;
+            }
+        });
+    </script>
+</body>
+</html>

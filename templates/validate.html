@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gesture Validation</title>
+    <link rel="stylesheet" href="/static/validation.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gesture Validation</h1>
+        <p id="status">Scanning gestures...</p>
+        <div class="webcam-container">
+            <img id="videoFeed" width="640" height="480" />
+        </div>
+        <div class="buttons">
+            <button id="retryButton" style="display: none;">Retry</button>
+            <button id="proceedButton" style="display: none;">Proceed</button>
+        </div>
+    </div>
+
+    <script>
+        const session_id = "{{ session_id }}";
+        document.getElementById('videoFeed').src = `/video_feed/${session_id}`;
+
+        const statusElement = document.getElementById("status");
+        const retryButton = document.getElementById("retryButton");
+        const proceedButton = document.getElementById("proceedButton");
+
+        // Function to check if gesture scanning is complete
+        function checkGestureStatus() {
+            fetch(`/get_password/${session_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.gesture_match === true) {
+                        // Gesture matched, proceed to face scanning
+                        statusElement.innerText = "Gesture password matched.";
+                        proceedButton.style.display = "inline-block";
+                    } else if (data.gesture_match === false) {
+                        statusElement.innerText = "Gesture password incorrect.";
+                        retryButton.style.display = "inline-block";
+                    } else {
+                        // Gesture scanning not yet complete, check again after some time
+                        setTimeout(checkGestureStatus, 2000); // Check every 2 seconds
+                    }
+                })
+                .catch(err => {
+                    console.error("Error checking gesture status:", err);
+                });
+        }
+
+        // Start checking the gesture status
+        checkGestureStatus();
+
+        // Event listeners for buttons
+        retryButton.addEventListener('click', () => {
+            // Reload the page to restart gesture validation
+            window.location.href = `/validate?session_id=${session_id}`;
+        });
+
+        proceedButton.addEventListener('click', () => {
+            // Proceed to face scanning
+            window.location.href = `/face_scan?session_id=${session_id}`;
+        });
+    </script>
+</body>
+</html>

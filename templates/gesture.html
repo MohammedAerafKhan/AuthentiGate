@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Gesture Authentication</title>
+    <link rel="stylesheet" href="/static/gesture.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Gesture Authentication</h1>
+        <p id="status">Capturing gestures...</p>
+        <div class="webcam-container">
+            <img id="videoFeed" width="640" height="480" />
+        </div>
+        <div id="passwordProgress"></div>
+        <div class="buttons">
+            <button id="retryButton" style="display: none;">Retry</button>
+            <button id="proceedButton" style="display: none;">Proceed</button>
+        </div>
+    </div>
+
+    <script>
+        const session_id = "{{ session_id }}";
+        const videoFeed = document.getElementById('videoFeed');
+        const status = document.getElementById('status');
+        const passwordProgress = document.getElementById('passwordProgress');
+        const retryButton = document.getElementById('retryButton');
+        const proceedButton = document.getElementById('proceedButton');
+
+        let password = [];
+
+        // Start the video feed
+        videoFeed.src = `/video_feed/${session_id}`;
+
+        // Function to update password progress
+        function updatePasswordProgress(newPassword) {
+            password = newPassword;
+            passwordProgress.innerHTML = "Password Progress: " + password.join(" ");
+        }
+
+        // Function to check if password capture is complete
+        function checkPasswordComplete() {
+            fetch(`/get_password/${session_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.password) {
+                        updatePasswordProgress(data.password);
+                        if (data.password.length >= 6) {
+                            status.textContent = "Gesture password captured.";
+                            retryButton.style.display = "inline-block";
+                            proceedButton.style.display = "inline-block";
+                        } else {
+                            setTimeout(checkPasswordComplete, 1000);  // Check again after 1 second
+                        }
+                    } else if (data.gesture_match !== undefined) {
+                        // Validation mode
+                        if (data.gesture_match) {
+                            status.textContent = "Gesture password matched.";
+                            proceedButton.style.display = "inline-block";
+                            proceedButton.textContent = "Proceed to Dashboard";
+                        } else {
+                            status.textContent = "Gesture password did not match.";
+                            retryButton.style.display = "inline-block";
+                        }
+                    } else {
+                        setTimeout(checkPasswordComplete, 1000);  // Check again after 1 second
+                    }
+                })
+                .catch(err => {
+                    console.error("Error fetching password progress:", err);
+                });
+        }
+
+        // Start checking password progress
+        checkPasswordComplete();
+
+        // Event listeners for buttons
+        retryButton.addEventListener('click', () => {
+            // Reload the page to restart the gesture capture
+            window.location.href = '/gesture?session_id=' + session_id;
+        });
+
+        proceedButton.addEventListener('click', () => {
+            // Decide where to proceed based on the mode
+            fetch(`/get_password/${session_id}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.message.includes("Data stored in MongoDB")) {
+                        // Registration mode
+                        alert("Your data has been successfully saved.");
+                        window.location.href = '/login';
+                    } else if (data.gesture_match === true) {
+                        // Validation mode
+                        window.location.href = '/dashboard?session_id=' + session_id;
+                    } else {
+                        // Handle other cases if necessary
+                        alert("An error occurred. Please try again.");
+                    }
+                })
+                .catch(err => {
+                    console.error("Error determining next step:", err);
+                });
+        });
+    </script>
+</body>
+</html>
